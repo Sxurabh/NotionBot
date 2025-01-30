@@ -4,7 +4,7 @@ from notion_client import Client
 from datetime import datetime, timedelta
 
 # GitHub API & Notion API
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+G_TOKEN = os.getenv("GITHUB_TOKEN")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
@@ -13,7 +13,7 @@ notion = Client(auth=NOTION_TOKEN)
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com/search/repositories"
 
-HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"}
+HEADERS = {"Authorization": f"token {G_TOKEN}"}
 
 def get_date_range(timeframe):
     """Returns the start date for GitHub search based on timeframe."""
