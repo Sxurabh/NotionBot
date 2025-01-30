@@ -79,16 +79,14 @@ def update_notion(trending_repos, timeframe, language_label):
         description = repo.get("description", "No description available.")
 
         # Ensure Timeframe is a valid Notion select option
-        if timeframe not in ["daily", "weekly", "monthly"]:
-            print(f"Invalid timeframe: {timeframe}")
-            continue
+        timeframe_select = {"name": timeframe}
 
         # Update existing repo
         if url in existing_repos:
             try:
                 notion.pages.update(
                     page_id=existing_repos[url], 
-                    properties={"Timeframe": {"select": {"name": timeframe}}}
+                    properties={"Timeframe": {"select": timeframe_select}}
                 )
             except Exception as e:
                 print(f"Error updating Notion entry for {title}: {e}")
@@ -99,10 +97,12 @@ def update_notion(trending_repos, timeframe, language_label):
                 notion.pages.create(
                     parent={"database_id": NOTION_DATABASE_ID},
                     properties={
-                        "Name": {"title": [{"text": {"content": title}}]},
+                        "Name": {
+                            "title": [{"text": {"content": title}}]
+                        },
                         "Stars": {"number": stars},
                         "URL": {"url": url},
-                        "Timeframe": {"select": {"name": timeframe}},
+                        "Timeframe": {"select": timeframe_select},
                         "New Entry": {"checkbox": True},
                         "Language": {"select": {"name": language_label}},
                         "Description": {"rich_text": [{"text": {"content": description}}]}
