@@ -19,7 +19,7 @@ HEADERS = {"Authorization": f"Bearer {G_TOKEN}", "Accept": "application/vnd.gith
 
 def get_date_range(timeframe):
     """Returns the start date for GitHub search based on timeframe."""
-today = datetime.now(timezone.utc).date()
+    today = datetime.now(timezone.utc).date()
     if timeframe == "daily":
         return today - timedelta(days=1)
     elif timeframe == "weekly":
