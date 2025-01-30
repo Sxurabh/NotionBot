@@ -1,20 +1,48 @@
 import requests
 import os
 from notion_client import Client
+from datetime import datetime, timedelta
 
-# GitHub Trending API (Unofficial)
-TRENDING_API_URL = "https://api.github-trending.com/v1/repositories"
-
-# Notion API
+# GitHub API & Notion API
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+
 notion = Client(auth=NOTION_TOKEN)
 
-def fetch_trending(timeframe, language=""):
-    """Fetch top trending GitHub repos for a given timeframe and language."""
-    url = f"{TRENDING_API_URL}?language={language}&since={timeframe}"
-    response = requests.get(url)
-    return response.json()[:10]
+# GitHub API URL
+GITHUB_API_URL = "https://api.github.com/search/repositories"
+
+HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"}
+
+def get_date_range(timeframe):
+    """Returns the start date for GitHub search based on timeframe."""
+    today = datetime.utcnow().date()
+    if timeframe == "daily":
+        return today - timedelta(days=1)
+    elif timeframe == "weekly":
+        return today - timedelta(weeks=1)
+    elif timeframe == "monthly":
+        return today - timedelta(days=30)
+    return today
+
+def fetch_trending_repos(timeframe, language=None):
+    """Fetch top 10 trending repositories from GitHub using the Search API."""
+    date_range = get_date_range(timeframe)
+    query = f"created:>{date_range}"
+    if language:
+        query += f" language:{language}"
+
+    params = {
+        "q": query,
+        "sort": "stars",
+        "order": "desc",
+        "per_page": 10
+    }
+
+    response = requests.get(GITHUB_API_URL, headers=HEADERS, params=params)
+    response.raise_for_status()
+    return response.json()["items"]
 
 def get_existing_repos():
     """Fetch existing repository URLs from Notion to avoid duplicates."""
@@ -28,8 +56,8 @@ def update_notion(trending_repos, timeframe, language_label):
 
     for repo in trending_repos:
         title = repo["name"]
-        stars = repo["stars"]
-        url = repo["url"]
+        stars = repo["stargazers_count"]
+        url = repo["html_url"]
         description = repo.get("description", "No description available.")
 
         if url in existing_repos:
@@ -52,9 +80,9 @@ def update_notion(trending_repos, timeframe, language_label):
 if __name__ == "__main__":
     for timeframe in ["daily", "weekly", "monthly"]:
         # Fetch and update for all languages
-        trending_all = fetch_trending(timeframe)
+        trending_all = fetch_trending_repos(timeframe)
         update_notion(trending_all, timeframe, "All Languages")
 
         # Fetch and update for Python
-        trending_python = fetch_trending(timeframe, "python")
+        trending_python = fetch_trending_repos(timeframe, "python")
         update_notion(trending_python, timeframe, "Python")
