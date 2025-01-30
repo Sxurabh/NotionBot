@@ -76,7 +76,8 @@ def update_notion(trending_repos, timeframe, language_label):
         title = repo["name"]
         stars = repo["stargazers_count"]
         url = repo["html_url"]
-        description = repo.get("description", "No description available.")
+        description = repo.get("description") or "No description available"  # Default to a string if null
+
 
         # Ensure Timeframe is a valid Notion select option
         timeframe_select = {"name": timeframe}
