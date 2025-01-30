@@ -51,7 +51,7 @@ def get_existing_repos():
     query = notion.databases.query(database_id=NOTION_DATABASE_ID)
     return {entry["properties"]["URL"]["url"]: entry["id"] for entry in query["results"]}
 
-def update_notion(trending_repos, timeframe, language_label):
+def update_notion(trending_repos, me, language_label):
     """Update Notion with the latest trending repositories."""
     existing_repos = get_existing_repos()
     new_entries = []
@@ -63,7 +63,7 @@ def update_notion(trending_repos, timeframe, language_label):
         description = repo.get("description", "No description available.")
 
         if url in existing_repos:
-            notion.pages.update(existing_repos[url], properties={"Timeframe": {"select": timeframe}})
+            notion.pages.update(existing_repos[url], properties={"me": {"select": timeframe}})
         else:
             new_entries.append(url)
             notion.pages.create(
