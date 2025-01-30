@@ -2,9 +2,11 @@ import requests
 import os
 from notion_client import Client
 from datetime import datetime, timedelta
+from datetime import timezone
+
 
 # GitHub API & Notion API
-G_TOKEN = os.getenv("GITHUB_TOKEN")
+G_TOKEN = os.getenv("G_TOKEN")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
@@ -13,11 +15,11 @@ notion = Client(auth=NOTION_TOKEN)
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com/search/repositories"
 
-HEADERS = {"Authorization": f"token {G_TOKEN}"}
+HEADERS = {"Authorization": f"Bearer {G_TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
 def get_date_range(timeframe):
     """Returns the start date for GitHub search based on timeframe."""
-    today = datetime.utcnow().date()
+today = datetime.now(timezone.utc).date()
     if timeframe == "daily":
         return today - timedelta(days=1)
     elif timeframe == "weekly":
