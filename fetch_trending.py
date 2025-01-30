@@ -1,20 +1,18 @@
 import requests
 import os
 from notion_client import Client
-from datetime import datetime, timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
-
-# GitHub API & Notion API
+# GitHub API & Notion API Credentials
 G_TOKEN = os.getenv("G_TOKEN")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
+# Initialize Notion Client
 notion = Client(auth=NOTION_TOKEN)
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com/search/repositories"
-
 HEADERS = {"Authorization": f"Bearer {G_TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
 def get_date_range(timeframe):
@@ -43,15 +41,33 @@ def fetch_trending_repos(timeframe, language=None):
     }
 
     response = requests.get(GITHUB_API_URL, headers=HEADERS, params=params)
-    response.raise_for_status()
-    return response.json()["items"]
+
+    # Handle HTTP errors gracefully
+    if response.status_code != 200:
+        print(f"GitHub API error {response.status_code}: {response.text}")
+        return []
+
+    return response.json().get("items", [])
 
 def get_existing_repos():
     """Fetch existing repository URLs from Notion to avoid duplicates."""
-    query = notion.databases.query(database_id=NOTION_DATABASE_ID)
-    return {entry["properties"]["URL"]["url"]: entry["id"] for entry in query["results"]}
+    try:
+        query = notion.databases.query(database_id=NOTION_DATABASE_ID)
+        existing_repos = {}
+        
+        for entry in query["results"]:
+            props = entry.get("properties", {})
+            
+            # Ensure 'URL' property exists
+            if "URL" in props and props["URL"].get("url"):
+                existing_repos[props["URL"]["url"]] = entry["id"]
+        
+        return existing_repos
+    except Exception as e:
+        print(f"Error fetching existing Notion entries: {e}")
+        return {}
 
-def update_notion(trending_repos, me, language_label):
+def update_notion(trending_repos, timeframe, language_label):
     """Update Notion with the latest trending repositories."""
     existing_repos = get_existing_repos()
     new_entries = []
@@ -62,22 +78,38 @@ def update_notion(trending_repos, me, language_label):
         url = repo["html_url"]
         description = repo.get("description", "No description available.")
 
+        # Ensure Timeframe is a valid Notion select option
+        if timeframe not in ["daily", "weekly", "monthly"]:
+            print(f"Invalid timeframe: {timeframe}")
+            continue
+
+        # Update existing repo
         if url in existing_repos:
-            notion.pages.update(existing_repos[url], properties={"me": {"select": timeframe}})
+            try:
+                notion.pages.update(
+                    page_id=existing_repos[url], 
+                    properties={"Timeframe": {"select": {"name": timeframe}}}
+                )
+            except Exception as e:
+                print(f"Error updating Notion entry for {title}: {e}")
         else:
+            # Add new repo entry to Notion
             new_entries.append(url)
-            notion.pages.create(
-                parent={"database_id": NOTION_DATABASE_ID},
-                properties={
-                    "Name": {"title": [{"text": {"content": title}}]},
-                    "Stars": {"number": stars},
-                    "URL": {"url": url},
-                    "Timeframe": {"select": timeframe},
-                    "New Entry": {"checkbox": True},
-                    "Language": {"select": language_label},
-                    "Description": {"rich_text": [{"text": {"content": description}}]}
-                }
-            )
+            try:
+                notion.pages.create(
+                    parent={"database_id": NOTION_DATABASE_ID},
+                    properties={
+                        "Name": {"title": [{"text": {"content": title}}]},
+                        "Stars": {"number": stars},
+                        "URL": {"url": url},
+                        "Timeframe": {"select": {"name": timeframe}},
+                        "New Entry": {"checkbox": True},
+                        "Language": {"select": {"name": language_label}},
+                        "Description": {"rich_text": [{"text": {"content": description}}]}
+                    }
+                )
+            except Exception as e:
+                print(f"Error creating Notion entry for {title}: {e}")
 
 if __name__ == "__main__":
     for timeframe in ["daily", "weekly", "monthly"]:
