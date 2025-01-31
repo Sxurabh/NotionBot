@@ -1,28 +1,25 @@
-name: Update Notion with Trending Repos
-
+name: Update Trending Repos
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight UTC
-  workflow_dispatch:  # Allows manual trigger
+    - cron: "0 0 * * *"  # Daily at midnight UTC
+  workflow_dispatch:     # Manual trigger
 
 jobs:
-  update_notion:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install requests notion-client
+        run: pip install requests beautifulsoup4 notion-client
 
-      - name: Fetch and update Notion
+      - name: Run script
         env:
-          G_TOKEN: ${{ secrets.G_TOKEN }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-        run: python fetch_trending.py
+        run: python update_trending.py
