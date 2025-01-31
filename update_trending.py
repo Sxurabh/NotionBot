@@ -3,10 +3,12 @@ import os
 from bs4 import BeautifulSoup
 from notion_client import Client
 
-
-notion = Client(auth=NOTION_TOKEN)
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
+
+
+notion = Client(auth=NOTION_TOKEN)
+
 
 
 def get_trending_repos(timeframe="daily", language=""):
