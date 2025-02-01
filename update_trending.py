@@ -9,8 +9,34 @@ NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
 notion = Client(auth=NOTION_TOKEN)
 
+# ADD THIS FUNCTION BACK (WAS MISSING)
+def get_trending_repos(timeframe="daily", language=""):
+    """Scrape GitHub trending repositories"""
+    url = f"https://github.com/trending/{language}?since={timeframe}"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    repos = []
+    for repo in soup.select("article.Box-row"):
+        name = repo.select_one("h2 a").text.strip().replace("\n", "").replace(" ", "")
+        desc = repo.select_one("p").text.strip() if repo.select_one("p") else ""
+        url = f"https://github.com{repo.select_one('h2 a')['href']}"
+        stars = repo.select_one("[aria-label='star']").parent.text.strip().replace(",", "")
+        forks = repo.select_one("[aria-label='fork']").parent.text.strip().replace(",", "")
+        
+        repos.append({
+            "name": name,
+            "description": desc,
+            "url": url,
+            "stars": int(stars),
+            "forks": int(forks),
+            "timeframe": timeframe,
+            "language": language.lower() if language else "all"
+        })
+    return repos
+
 def repo_exists(repo_name, timeframe, category):
-    """Check if repo already exists in the database for the same timeframe/category"""
+    """Check if repo already exists in the database"""
     response = notion.databases.query(
         NOTION_DATABASE_ID,
         filter={
@@ -58,5 +84,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
- 
