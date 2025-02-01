@@ -9,7 +9,6 @@ NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
 notion = Client(auth=NOTION_TOKEN)
 
-# ADD THIS FUNCTION BACK (WAS MISSING)
 def get_trending_repos(timeframe="daily", language=""):
     """Scrape GitHub trending repositories"""
     url = f"https://github.com/trending/{language}?since={timeframe}"
@@ -36,14 +35,25 @@ def get_trending_repos(timeframe="daily", language=""):
     return repos
 
 def repo_exists(repo_name):
-    """Check if repo has EVER been added before"""
+    """Check if repo exists in database (any timeframe/category)"""
     response = notion.databases.query(
         NOTION_DATABASE_ID,
         filter={"property": "Repo Name", "title": {"equals": repo_name}}
     )
     return len(response["results"]) > 0
 
+def update_existing_repo(page_id):
+    """Mark existing repo as 'Existing' and update Last Seen"""
+    notion.pages.update(
+        page_id,
+        properties={
+            "Status": {"select": {"name": "Existing"}},
+            "Last Seen": {"date": {"start": datetime.now().isoformat()}}
+        }
+    )
+
 def add_to_notion(repo, category):
+    """Add or update repo in Notion"""
     is_new = not repo_exists(repo["name"])
     
     properties = {
@@ -60,20 +70,23 @@ def add_to_notion(repo, category):
         "Last Seen": {"date": {"start": datetime.now().isoformat()}}
     }
     
-    # Update existing entries
+    # Remove None values
+    properties = {k: v for k, v in properties.items() if v is not None}
+    
     if not is_new:
+        # Update existing entries
         existing_pages = notion.databases.query(
             NOTION_DATABASE_ID,
             filter={"property": "Repo Name", "title": {"equals": repo["name"]}}
         )["results"]
-        
         for page in existing_pages:
-            notion.pages.update(
-                page["id"],
-                properties={"Last Seen": {"date": {"start": datetime.now().isoformat()}}}
-            )
+            update_existing_repo(page["id"])
     else:
-        notion.pages.create(parent={"database_id": NOTION_DATABASE_ID}, properties=properties)
+        # Add new entry
+        notion.pages.create(
+            parent={"database_id": NOTION_DATABASE_ID},
+            properties=properties
+        )
 
 def main():
     timeframes = ["daily", "weekly", "monthly"]
