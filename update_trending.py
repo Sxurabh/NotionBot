@@ -35,23 +35,16 @@ def get_trending_repos(timeframe="daily", language=""):
         })
     return repos
 
-def repo_exists(repo_name, timeframe, category):
-    """Check if repo already exists in the database"""
+def repo_exists(repo_name):
+    """Check if repo has EVER been added before"""
     response = notion.databases.query(
         NOTION_DATABASE_ID,
-        filter={
-            "and": [
-                {"property": "Repo Name", "title": {"equals": repo_name}},
-                {"property": "Timeframe", "select": {"equals": timeframe}},
-                {"property": "Category", "select": {"equals": category}}
-            ]
-        }
+        filter={"property": "Repo Name", "title": {"equals": repo_name}}
     )
     return len(response["results"]) > 0
 
 def add_to_notion(repo, category):
-    """Add repo with status tracking"""
-    is_new = not repo_exists(repo["name"], repo["timeframe"], category)
+    is_new = not repo_exists(repo["name"])
     
     properties = {
         "Repo Name": {"title": [{"text": {"content": repo["name"]}}]},
@@ -63,13 +56,24 @@ def add_to_notion(repo, category):
         "Timeframe": {"select": {"name": repo["timeframe"]}},
         "Category": {"select": {"name": category}},
         "Status": {"select": {"name": "New" if is_new else "Existing"}},
-        "First Seen": {"date": {"start": datetime.now().isoformat()}} if is_new else None
+        "First Seen": {"date": {"start": datetime.now().isoformat()}} if is_new else None,
+        "Last Seen": {"date": {"start": datetime.now().isoformat()}}
     }
     
-    # Remove None values
-    properties = {k: v for k, v in properties.items() if v is not None}
-    
-    notion.pages.create(parent={"database_id": NOTION_DATABASE_ID}, properties=properties)
+    # Update existing entries
+    if not is_new:
+        existing_pages = notion.databases.query(
+            NOTION_DATABASE_ID,
+            filter={"property": "Repo Name", "title": {"equals": repo["name"]}}
+        )["results"]
+        
+        for page in existing_pages:
+            notion.pages.update(
+                page["id"],
+                properties={"Last Seen": {"date": {"start": datetime.now().isoformat()}}}
+            )
+    else:
+        notion.pages.create(parent={"database_id": NOTION_DATABASE_ID}, properties=properties)
 
 def main():
     timeframes = ["daily", "weekly", "monthly"]
