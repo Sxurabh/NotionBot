@@ -1,0 +1,24 @@
+# .github/workflows/reset_status.yml
+name: Reset Repo Status
+on:
+  schedule:
+    - cron: "0 12 * * *"  # Daily at 12 PM UTC
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reset Status
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          python -c '
+          from notion_client import Client
+          import os
+          notion = Client(auth=os.environ["NOTION_TOKEN"])
+          results = notion.databases.query(os.environ["DATABASE_ID"], filter={"property": "Status", "select": {"equals": "New"}})
+          for page in results["results"]:
+              notion.pages.update(page["id"], properties={"Status": {"select": {"name": "Existing"}}})
+          '
